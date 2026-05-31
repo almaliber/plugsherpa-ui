@@ -140,3 +140,96 @@
     </main>
 
     <script>
+
+                const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        if (tg.setHeaderColor) tg.setHeaderColor('#03060f');
+
+        if (tg.initDataUnsafe?.user?.first_name) {
+            const name = tg.initDataUnsafe.user.first_name;
+            document.getElementById('greeting-field').innerText = `Namaste, ${name}`;
+            document.getElementById('avatar-letter').innerText = name.charAt(0).toUpperCase();
+        }
+
+        let mainMap;
+        const BACKEND_URL = "https://workers.dev"; // Insert live Cloudflare deployment URL parameters here
+
+        function acceptPrivacyPolicies() {
+            const gpsOk = document.getElementById('consent-gps').checked;
+            const legalOk = document.getElementById('consent-legal').checked;
+
+            if (!gpsOk || !legalOk) {
+                tg.showAlert("Permissions required to map transactions under local consumer guidelines.");
+                return;
+            }
+
+            const modal = document.getElementById('dpdp-modal');
+            modal.firstElementChild.classList.add('translate-y-full');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => modal.remove(), 500);
+            initializeSystemMap();
+        }
+
+        function initializeSystemMap() {
+            const lon = 77.5946;
+            const lat = 12.9716;
+
+            // Map engine engine canvas creation sequence loops - Utilizing CartoDB Dark Matter style vectors
+            mainMap = L.map('map-canvas', { zoomControl: false, attributionControl: false }).setView([lat, lon], 13);
+            
+            const tileLayer = L.tileLayer('https://{s}://{z}/{x}/{y}{r}.png', {
+                maxZoom: 20
+            }).addTo(mainMap);
+
+            // Inject the cyber map coloration filters directly over the baseline vector rendering containers
+            tileLayer.getContainer().classList.add('cyber-map');
+
+            fetchNearbyBlurredHosts(lon, lat);
+        }
+
+        async function fetchNearbyBlurredHosts(lon, lat) {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/nearby-hosts?lon=${lon}&lat=${lat}`);
+                const hostArray = await response.json();
+
+                hostArray.forEach(host => {
+                    // Draw clean neon-edged rings representing the hidden precise socket configurations
+                    L.circle([host.fuzzy_latitude, host.fuzzy_longitude], {
+                        color: '#059669',
+                        fillColor: '#10b981',
+                        fillOpacity: 0.08,
+                        weight: 1.5,
+                        dashArray: '5, 5',
+                        radius: 450
+                    }).addTo(mainMap).bindPopup(`
+                        <div class="p-2 font-sans space-y-2 min-w-[170px] bg-transparent">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[9px] uppercase tracking-widest font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Verified Sherpa</span>
+                                <span class="text-xs font-bold text-slate-100">₹${host.hourly_rate}/hr</span>
+                            </div>
+                            <div class="space-y-0.5">
+                                <h3 class="font-black text-sm text-slate-200 tracking-tight">🔌 ${host.plug_type.replace('_',' ')}</h3>
+                                <p class="text-[10px] leading-normal text-slate-400">Driveway space lease. Charging grid throughput included as complimentary amenity.</p>
+                            </div>
+                            <button onclick="window.Telegram.WebApp.showAlert('UPI smart gateway connection requested.')" class="w-full bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 font-black text-[11px] py-2 rounded-xl mt-1 transition-opacity active:opacity-90 uppercase tracking-widest">Book Spot</button>
+                        </div>
+                    `);
+                });
+            } catch (error) {
+                console.error("Geospatial sync loop anomaly:", error);
+            }
+        }
+
+        function triggerSOSAlert() {
+            tg.showPopup({
+                title: '🚨 Launch SOS Rescue?',
+                message: 'This will broadcast your active GPS coordinates directly to the 5 closest compatible Sherpa hosts instantly.',
+                buttons: [
+                    {id: 'confirm', type: 'ok', text: 'Yes, Broadcast'},
+                    {id: 'cancel', type: 'cancel', text: 'Cancel'}
+                ]
+            });
+        }
+
