@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlugSherpa Mini App</title>
+    <!-- CSS Tooling Engine -->
+    <script src="https://tailwindcss.com"></script>
+    <!-- Official Telegram Webview Mini App Integration Layer SDK -->
+    <script src="https://telegram.org"></script>
+    <!-- Open-Source Spatial Layer Library Engine components -->
+    <link rel="stylesheet" href="https://unpkg.com" />
+    <script src="https://unpkg.com"></script>
+    <style>
+        #map-canvas { height: 45vh; width: 100%; border-radius: 1.5rem; z-index: 1; }
+        .leaflet-container { background: #0f172a !important; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased p-4 selection:bg-emerald-500 selection:text-slate-900">
+
+    <!-- DPDP Act Consent Modal Overlay Panel -->
+    <div id="dpdp-modal" class="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-sm w-full space-y-5 shadow-2xl">
+            <div class="text-center">
+                <h2 class="text-2xl font-black text-emerald-400 tracking-tight">📍 Privacy Approvals / डेटा सुरक्षा</h2>
+                <p class="text-xs text-slate-400 mt-1">PlugSherpa needs your explicit consent to comply with India's DPDP Act guidelines.</p>
+            </div>
+            
+            <div class="space-y-3 text-sm">
+                <label class="flex items-start space-x-3 bg-slate-950 p-3 rounded-xl border border-slate-800 cursor-pointer">
+                    <input type="checkbox" id="consent-gps" class="mt-1 accent-emerald-500 w-4 h-4 rounded">
+                    <span><strong>Location Data:</strong> Access my high-accuracy device GPS coordinates to trace nearby community chargers.</span>
+                </label>
+                <label class="flex items-start space-x-3 bg-slate-950 p-3 rounded-xl border border-slate-800 cursor-pointer">
+                    <input type="checkbox" id="consent-legal" class="mt-1 accent-emerald-500 w-4 h-4 rounded">
+                    <span><strong>Legal Waiver:</strong> I understand that charging is a *free complimentary amenity* and I am renting short-term parking.</span>
+                </label>
+            </div>
+
+            <button onclick="acceptPrivacyPolicies()" class="w-full bg-emerald-500 active:bg-emerald-600 text-slate-950 font-extrabold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-500/10">
+                Grant Access & Continue / सुरू करा
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Active App UI Space Wrapper -->
+    <main class="max-w-md mx-auto space-y-4 pb-6">
+        <header class="flex justify-between items-center bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
+            <div>
+                <h1 class="text-xl font-black tracking-tighter text-emerald-400">⚡ PLUGSHERPA</h1>
+                <p id="greeting-field" class="text-xs text-slate-400">Namaste, driver...</p>
+            </div>
+            <div class="text-right">
+                <span class="bg-emerald-500/10 text-emerald-400 text-xs font-black px-3 py-1.5 rounded-full border border-emerald-500/20">✨ Karma: 150</span>
+            </div>
+        </header>
+
+        <!-- Leaflet Free Map Canvas Box -->
+        <div id="map-canvas" class="border border-slate-800 shadow-inner shadow-slate-950"></div>
+
+        <!-- Invoicing & Billing Legal Disclosure Notice Banner -->
+        <section class="bg-slate-900/60 border border-slate-800/80 p-4 rounded-2xl text-xs text-slate-400 space-y-1">
+            <span class="font-bold text-slate-300 block">📑 Indian Regulatory Tariff Disclosure:</span>
+            <p>Transactions are billed as a short-term driveway parking convenience lease. Electrical energy delivery parameters are categorized strictly as a 100% complimentary unmetered accommodation value-add provided free of cost by your regional host.</p>
+        </section>
+
+        <!-- Emergency Interaction Modules Panel -->
+        <section class="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-3 shadow-xl">
+            <div class="flex items-center space-x-2">
+                <span class="flex h-2.5 w-2.5 relative">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                </span>
+                <h2 class="font-black text-xs uppercase tracking-widest text-slate-400">Emergency Rescue Zone</h2>
+            </div>
+            <button onclick="triggerSOSAlert()" class="w-full bg-red-600 active:bg-red-700 text-white font-black py-4 rounded-xl transition-all shadow-lg text-sm tracking-wide transform active:scale-[0.99]">
+                BROADCAST EMERGENCY SOS BEACON (बॅटरी < 5%)
+            </button>
+        </section>
+    </main>
+
+    <script>
+        // Bind the Telegram App Interface Layer tools
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        if (tg.initDataUnsafe?.user?.first_name) {
+            document.getElementById('greeting-field').innerText = `Namaste, ${tg.initDataUnsafe.user.first_name}`;
+        }
+
+        let mainMap;
+        const BACKEND_URL = "https://workers.dev"; // Replace with your live Cloudflare Worker domain endpoint URL
+
+        function acceptPrivacyPolicies() {
+            const gpsOk = document.getElementById('consent-gps').checked;
+            const legalOk = document.getElementById('consent-legal').checked;
+
+            if (!gpsOk || !legalOk) {
+                tg.showAlert("You must accept all itemized data permissions to comply with the DPDP Act guidelines.");
+                return;
+            }
+
+            document.getElementById('dpdp-modal').classList.add('hidden');
+            initializeSystemMap();
+        }
+
+        function initializeSystemMap() {
+            // Default center location pin layout targeted inside central Bengaluru coordinates
+            const defaultLon = 77.5946;
+            const defaultLat = 12.9716;
+
+            mainMap = L.map('map-canvas', { zoomControl: false }).setView([defaultLat, defaultLon], 13);
+            
+            // Build the unlimited open tile mapper layout layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(mainMap);
+
+            // Execute automated async fetch commands targeting your live database network entries
+            fetchNearbyBlurredHosts(defaultLon, defaultLat);
+        }
+
+        async function fetchNearbyBlurredHosts(lon, lat) {
+            try {
+                const queryResponse = await fetch(`${BACKEND_URL}/api/nearby-hosts?lon=${lon}&lat=${lat}`);
+                const hostArray = await queryResponse.json();
+
+                hostArray.forEach(host => {
+                    // Implement Privacy Engine: Render a translucent blurred circle zone vector instead of a precise sharp pin position
+                    L.circle([host.fuzzy_latitude, host.fuzzy_longitude], {
+                        color: '#10b981',
+                        fillColor: '#34d399',
+                        fillOpacity: 0.25,
+                        weight: 2,
+                        radius: 450 // Controls the 450m geographical privacy blur footprint mask
+                    }).addTo(mainMap).bindPopup(`
+                        <div class="text-slate-900 p-1 font-sans space-y-1">
+                            <h3 class="font-black text-sm text-slate-900">🔌 Verified Sherpa Plug</h3>
+                            <p class="text-xs text-slate-600">Rate: ₹${host.hourly_rate}/hr (Driveway Lease)</p>
+                            <p class="text-[10px] bg-slate-100 p-1 rounded text-slate-500 font-medium">⚡ Power charging included as free amenity</p>
+                            <button onclick="alert('UPI transaction window requested via Sandbox routing gateway.')" class="w-full bg-emerald-500 text-white text-xs font-bold py-1.5 rounded mt-2 block text-center">Book Short Lease</button>
+                        </div>
+                    `);
+                });
+            } catch (error) {
+                console.error("Critical maps synchronization breakdown:", error);
+            }
+        }
+
+        function triggerSOSAlert() {
+            tg.showPopup({
+                title: '🚨 Lifeline SOS Activated',
+                message: 'Do you confirm broadcasting your high-accuracy spatial coordinates to the 5 closest emergency Sherpa hosts?',
+                buttons: [
+                    {id: 'confirm', type: 'ok', text: 'Confirm & Broadcast'},
+                    {id: 'cancel', type: 'cancel', text: 'Dismiss'}
+                ]
+            });
+        }
+    </script>
+</body>
+</html>
